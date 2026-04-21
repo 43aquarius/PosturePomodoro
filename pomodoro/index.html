@@ -868,6 +868,27 @@ input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.2); }
 .gesture-cell .name  { font-size:.6875rem; color:var(--ink-muted); }
 .gesture-cell .act   { font-size:.6875rem; font-weight:600; color:var(--ink-soft); }
 
+/* GitHub 开源链接 */
+.github-link {
+  margin-top:1.5rem;
+  padding-top:1rem;
+  border-top:1px solid var(--ink-ghost);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.5rem;
+  font-size:.75rem;
+  color:var(--ink-soft);
+  text-decoration:none;
+  transition:color .3s;
+}
+.github-link:hover {
+  color:var(--ink);
+}
+.github-link .github-icon {
+  font-size:1rem;
+}
+
 /* ═══════════════════════════════════════════
    工具类
 ═══════════════════════════════════════════ */
@@ -1124,7 +1145,14 @@ input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.2); }
       <div class="gesture-cell"><span class="emoji">✌️</span><span class="name">剪刀手</span><span class="act">跳过休息</span></div>
       <div class="gesture-cell"><span class="emoji">🤙</span><span class="name">打Call</span><span class="act">鼓励</span></div>
       <div class="gesture-cell"><span class="emoji">🙋</span><span class="name">举手</span><span class="act">强制休息</span></div>
+      <div class="gesture-cell"><span class="emoji">👎</span><span class="name">大拇指向下</span><span class="act">放弃</span></div>
+      <div class="gesture-cell"><span class="emoji">👆</span><span class="name">单食指</span><span class="act">专注模式</span></div>
     </div>
+    
+    <a href="https://github.com/43aquarius/PosturePomodoro" target="_blank" class="github-link">
+      <span class="github-icon">⚙️</span>
+      <span>在 GitHub 上开源</span>
+    </a>
   </div>
 </aside>
 

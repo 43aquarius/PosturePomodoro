@@ -322,6 +322,8 @@ class App {
         bus.on('timer:auto:pause', () => toast.info('检测到你离开了，计时暂停'));
         bus.on('timer:auto:resume', () => toast.success('欢迎回来，继续专注！'));
         bus.on('timer:complete', ({ count }) => toast.success(`第 ${count} 个番茄完成！`));
+        bus.on('focus:enter', () => toast.info('进入专注模式'));
+        bus.on('encouragement:show', () => toast.success('加油！你做得很棒！'));
         bus.on('gesture:detected', ({ label }) => {
             const el = document.getElementById('gesture-hint');
             if (el) {

@@ -161,7 +161,19 @@ export class PomodoroTimer {
             case 'pause':  if (this.sm.is(STATES.WORK)) this.pause(); break;
             case 'complete': if (this.sm.is(STATES.WORK)) this.complete(); break;
             case 'skip_rest': this.skipRest(); break;
+            case 'abandon': this.reset(); break;
+            case 'focus_mode': this._enterFocusMode(); break;
+            case 'force_rest': if (this.sm.is(STATES.WORK)) this.startRest(true); break;
+            case 'encourage': this._showEncouragement(); break;
         }
+    }
+
+    _enterFocusMode() {
+        bus.emit('focus:enter');
+    }
+
+    _showEncouragement() {
+        bus.emit('encouragement:show');
     }
 
     _getAvgPostureScore() {
