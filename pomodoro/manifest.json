@@ -1,0 +1,13 @@
+{
+  "name": "姿态番茄钟",
+  "short_name": "姿态钟",
+  "description": "AI 姿态识别番茄钟 - 让专注更健康",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fef5e7",
+  "theme_color": "#f44336",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
