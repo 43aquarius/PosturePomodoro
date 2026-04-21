@@ -894,6 +894,208 @@ input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.2); }
 ═══════════════════════════════════════════ */
 .hidden { display:none !important; }
 
+/* ═══════════════════════════════════════════
+   LOADING — 番茄生长动画
+   纯 CSS keyframes，无外部依赖
+═══════════════════════════════════════════ */
+.loading-overlay {
+  position:fixed; inset:0; z-index:9999;
+  background:var(--cream);
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column;
+  transition:opacity .6s var(--ease-out-expo);
+}
+
+.loading-overlay.done {
+  opacity:0; pointer-events:none;
+}
+
+.tomato-garden {
+  position:relative;
+  width:320px; height:320px;
+}
+
+.garden-svg {
+  width:100%; height:100%;
+  overflow:visible;
+}
+
+/* 土壤 */
+.soil-rect {
+  fill:#b08968;
+  opacity:0;
+}
+.loading-overlay.animating .soil-rect {
+  animation:soilIn .4s var(--ease-out-expo) .1s both;
+}
+
+/* 种子 */
+.seed {
+  fill:#a0522d;
+  opacity:0;
+  transform-origin:150px 260px;
+}
+.loading-overlay.animating .seed {
+  animation:seedPop .6s var(--ease-elastic) .2s both,
+            seedWiggle .5s ease-in-out .6s 2 alternate;
+}
+
+/* 茎 */
+.stem {
+  stroke:#3d6b4a;
+  stroke-linecap:round;
+  fill:none;
+  opacity:0;
+}
+.stem-main { stroke-width:4; }
+.stem-branch { stroke-width:3; }
+.loading-overlay.animating .stem {
+  animation:stemGrow 1.2s var(--ease-out-expo) 1.0s both;
+}
+
+/* 叶子 */
+.leaf {
+  opacity:0;
+  transform-origin:center;
+  transform-box:fill-box;
+}
+.loading-overlay.animating .leaf-1 { animation:leafPop .5s var(--ease-elastic) 1.8s both; }
+.loading-overlay.animating .leaf-2 { animation:leafPop .5s var(--ease-elastic) 1.95s both; }
+.loading-overlay.animating .leaf-3 { animation:leafPop .5s var(--ease-elastic) 2.1s both; }
+.loading-overlay.animating .leaf-4 { animation:leafPop .5s var(--ease-elastic) 2.25s both; }
+
+/* 花朵 */
+.flower-group { opacity:0; }
+.loading-overlay.animating .flower-group {
+  animation:flowerShow .3s var(--ease-smooth) 2.5s both;
+}
+.petal {
+  transform-origin:center;
+  transform-box:fill-box;
+  opacity:0;
+}
+.loading-overlay.animating .petal-1 { animation:petalBloom .5s var(--ease-elastic) 2.6s both; }
+.loading-overlay.animating .petal-2 { animation:petalBloom .5s var(--ease-elastic) 2.7s both; }
+.loading-overlay.animating .petal-3 { animation:petalBloom .5s var(--ease-elastic) 2.8s both; }
+.loading-overlay.animating .petal-4 { animation:petalBloom .5s var(--ease-elastic) 2.9s both; }
+.loading-overlay.animating .petal-5 { animation:petalBloom .5s var(--ease-elastic) 3.0s both; }
+
+/* 番茄果实 */
+.tomato-fruit {
+  opacity:0;
+  transform-origin:150px 75px;
+  transform-box:fill-box;
+}
+.loading-overlay.animating .tomato-fruit {
+  animation:fruitAppear .5s var(--ease-elastic) 3.3s both,
+            fruitBounce .6s var(--ease-elastic) 3.8s both;
+}
+
+.tomato-highlight {
+  opacity:0;
+}
+.loading-overlay.animating .tomato-highlight {
+  animation:highlightIn .4s var(--ease-smooth) 4.0s both;
+}
+
+/* 文字 */
+.loading-text-wrap {
+  text-align:center;
+  margin-top:1.5rem;
+  opacity:0;
+  transform:translateY(12px);
+}
+.loading-overlay.animating .loading-text-wrap {
+  animation:textSlideIn .6s var(--ease-out-expo) .3s both;
+}
+
+.loading-title {
+  font-family:var(--font-display);
+  font-size:1.75rem;
+  color:var(--tomato);
+  letter-spacing:-.01em;
+}
+
+.loading-sub {
+  font-family:var(--font-body);
+  font-size:.8125rem;
+  color:var(--ink-muted);
+  margin-top:.25rem;
+  font-weight:500;
+}
+
+.loading-percent {
+  font-family:var(--font-mono);
+  font-size:2.5rem;
+  font-weight:700;
+  color:var(--tomato);
+  line-height:1;
+  margin-top:.75rem;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Keyframes */
+@keyframes soilIn {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+@keyframes seedPop {
+  from { opacity:0; transform:scale(0); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+@keyframes seedWiggle {
+  0%   { transform:scale(1) rotate(0deg); }
+  25%  { transform:scale(1) rotate(-8deg); }
+  75%  { transform:scale(1) rotate(8deg); }
+  100% { transform:scale(1) rotate(0deg); }
+}
+
+@keyframes stemGrow {
+  0%   { opacity:0; }
+  10%  { opacity:1; }
+  100% { opacity:1; stroke-dashoffset:0; }
+}
+
+@keyframes leafPop {
+  from { opacity:0; transform:scale(0) rotate(-15deg); }
+  to   { opacity:1; transform:scale(1) rotate(0deg); }
+}
+
+@keyframes flowerShow {
+  from { opacity:0; transform:scale(.6); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+@keyframes petalBloom {
+  from { opacity:0; transform:scale(0); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+@keyframes fruitAppear {
+  from { opacity:0; transform:scale(0); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+@keyframes fruitBounce {
+  0%   { transform:translateY(0) scale(1); }
+  40%  { transform:translateY(-18px) scale(1.05,0.95); }
+  60%  { transform:translateY(4px) scale(0.98,1.02); }
+  80%  { transform:translateY(-6px) scale(1.01,0.99); }
+  100% { transform:translateY(0) scale(1); }
+}
+
+@keyframes highlightIn {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+
+@keyframes textSlideIn {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
 /* 响应式 */
 @media (max-width:768px) {
   .app { grid-template-columns:1fr; grid-template-rows:38vh 1fr; }
@@ -912,6 +1114,62 @@ input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.2); }
 </style>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════
+   LOADING — 番茄生长动画
+═══════════════════════════════════════════ -->
+<div class="loading-overlay" id="loading">
+  <div class="tomato-garden">
+    <svg viewBox="0 0 300 300" class="garden-svg" xmlns="http://www.w3.org/2000/svg">
+      <!-- 土壤 -->
+      <rect class="soil-rect" x="20" y="255" width="260" height="40" rx="8"/>
+
+      <!-- 种子 -->
+      <ellipse class="seed" cx="150" cy="262" rx="7" ry="9"/>
+
+      <!-- 茎（主茎 + 分叉） -->
+      <path class="stem stem-main" d="M150,260 C148,230 145,200 148,170 C150,140 152,120 150,100 C148,85 145,75 150,70"/>
+      <path class="stem stem-branch" d="M148,170 C135,165 125,160 118,155"/>
+      <path class="stem stem-branch" d="M150,140 C165,135 175,130 182,125"/>
+
+      <!-- 叶子 -->
+      <g class="leaves">
+        <path class="leaf leaf-1" d="M118,155 Q105,150 100,158 Q108,165 118,155" fill="#5a8a6e"/>
+        <path class="leaf leaf-2" d="M182,125 Q195,120 200,128 Q192,135 182,125" fill="#6a9a7e"/>
+        <path class="leaf leaf-3" d="M148,170 Q138,168 132,175 Q140,180 148,170" fill="#5a8a6e"/>
+        <path class="leaf leaf-4" d="M150,140 Q162,138 168,145 Q160,150 150,140" fill="#6a9a7e"/>
+      </g>
+
+      <!-- 花朵 -->
+      <g class="flower-group">
+        <circle class="petal petal-1" cx="138" cy="68" r="11" fill="#f0c850"/>
+        <circle class="petal petal-2" cx="162" cy="68" r="11" fill="#f0c850"/>
+        <circle class="petal petal-3" cx="143" cy="56" r="11" fill="#f0c850"/>
+        <circle class="petal petal-4" cx="157" cy="56" r="11" fill="#f0c850"/>
+        <circle class="petal petal-5" cx="150" cy="63" r="7" fill="#e0a838"/>
+      </g>
+
+      <!-- 番茄果实 -->
+      <g class="tomato-fruit">
+        <!-- 主体 -->
+        <ellipse cx="150" cy="78" rx="26" ry="30" fill="#c75b4a"/>
+        <ellipse cx="150" cy="72" rx="21" ry="25" fill="#d96b5a"/>
+        <!-- 高光 -->
+        <ellipse class="tomato-highlight" cx="142" cy="62" rx="7" ry="10" fill="rgba(255,255,255,.22)" transform="rotate(-20 142 62)"/>
+        <!-- 蒂 -->
+        <path d="M150,50 L146,58 L154,58 Z" fill="#3d6b4a"/>
+        <path d="M146,55 Q138,50 135,56" stroke="#5a8a6e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M154,55 Q162,50 165,56" stroke="#5a8a6e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="loading-text-wrap">
+    <div class="loading-title" id="loading-title">正在种番茄</div>
+    <div class="loading-sub" id="loading-sub">培育专注力的种子</div>
+    <div class="loading-percent" id="loading-percent">0%</div>
+  </div>
+</div>
 
 <!-- 氛围背景 -->
 <div class="atmosphere">
@@ -1193,4 +1451,5 @@ if ('serviceWorker' in navigator) {
 
 </body>
 </html>
+
 

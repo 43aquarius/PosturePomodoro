@@ -41,6 +41,39 @@ class App {
     }
 
     async init() {
+        // ═══ 番茄生长加载动画 ═══
+        const loadingEl = document.getElementById('loading');
+        const percentEl = document.getElementById('loading-percent');
+        const titleEl   = document.getElementById('loading-title');
+        const subEl     = document.getElementById('loading-sub');
+
+        // 测量茎长度并设置 stroke-dash 初始值（保证生长动画准确）
+        loadingEl?.querySelectorAll('.stem').forEach(stem => {
+            try {
+                const len = stem.getTotalLength();
+                stem.style.strokeDasharray = String(len);
+                stem.style.strokeDashoffset = String(len);
+            } catch(e) {}
+        });
+
+        // 触发动画
+        requestAnimationFrame(() => {
+            loadingEl?.classList.add('animating');
+        });
+
+        // 进度文字更新
+        let progress = 0;
+        const DURATION = 4800; // 动画总时长 ms
+        const startTime = performance.now();
+        const step = (now) => {
+            const elapsed = now - startTime;
+            progress = Math.min(100, Math.round((elapsed / DURATION) * 100));
+            if (percentEl) percentEl.textContent = progress + '%';
+            if (progress < 100) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+
+        // 背景初始化（与动画并行）
         try { await db.init(); } catch(e) {}
 
         this.timer = new PomodoroTimer(this._settings);
@@ -75,6 +108,19 @@ class App {
         this._cameraActive = false;
         document.getElementById('camera-wait')?.classList.remove('hidden');
         document.getElementById('skeleton-canvas')?.classList.add('hidden');
+
+        // 等待动画结束再隐藏 loading
+        const waitAnimation = () => new Promise(r => setTimeout(r, DURATION));
+        await waitAnimation();
+
+        if (titleEl) titleEl.textContent = '种好了！';
+        if (subEl)   subEl.textContent = '准备开工';
+        await new Promise(r => setTimeout(r, 400));
+
+        loadingEl?.classList.add('done');
+        setTimeout(() => {
+            if (loadingEl) loadingEl.style.display = 'none';
+        }, 650);
 
         console.log('[App] 初始化完成');
     }
