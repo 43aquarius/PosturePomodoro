@@ -65,10 +65,25 @@ export class StatsPersister {
         const avgPosture = postureLogs.length
             ? Math.round(postureLogs.reduce((s, x) => s + x.score, 0) / postureLogs.length)
             : 0;
+        
+        // 计算最佳坐姿和需要改进的时间（每个日志条目代表1分钟）
+        let bestPostureTime = 0;
+        let needsImprovementTime = 0;
+        
+        postureLogs.forEach(log => {
+            if (log.score >= 80) {
+                bestPostureTime += 1;
+            } else {
+                needsImprovementTime += 1;
+            }
+        });
+        
         return {
             pomodoroCount: pomodoros.length,
             totalWorkTime: pomodoros.length * 25,
             avgPostureScore: avgPosture,
+            bestPostureTime,
+            needsImprovementTime,
             postureLogs
         };
     }
@@ -82,6 +97,20 @@ export class StatsPersister {
             const d = new Date(p.date).toLocaleDateString('zh-CN');
             byDay[d] = (byDay[d] || 0) + 1;
         });
-        return byDay;
+        
+        // 生成最近7天的日期数组
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateKey = date.toLocaleDateString('zh-CN');
+            const day = date.getDate(); // 只获取日期中的"日"部分
+            last7Days.push({
+                date: day.toString(),
+                pomodoroCount: byDay[dateKey] || 0
+            });
+        }
+        
+        return last7Days;
     }
 }

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手势节奏大师 - Gesture Rhythm Master</title>
+    <!-- 外部库引入 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #08090c;
+            --font-main: 'ZCOOL+KuaiLe', cursive;
+            --font-title: 'Ma+Shan+Zheng', cursive;
+            --color-1: #ff3c50; /* 握拳 - 红 */
+            --color-2: #00ffb4; /* 手掌 - 青绿 */
+            --color-3: #ffc800; /* 剪刀 - 金黄 */
+            --color-4: #ff8a00; /* 竖拇指 - 橙 */
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            color: white; overflow: hidden; font-family: var(--font-main);
+        }
+
+        /* 背景纹理与微光 */
+        .bg-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; pointer-events: none;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255, 60, 80, 0.04), transparent 40%),
+                radial-gradient(circle at 80% 20%, rgba(0, 255, 180, 0.04), transparent 40%);
+        }
+        .bg-noise {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -2; opacity: 0.15; pointer-events: none;
+        }
+
+        /* 游戏布局 */
+        #game-container {
+            position: relative; width: 100vw; height: 100vh;
+        }
+
+        canvas#gameCanvas {
+            display: block; width: 100%; height: 100%;
+        }
+
+        /* 摄像头画面容器 */
+        #cam-wrapper {
+            position: absolute; left: 20px; bottom: 20px;
+            width: 180px; height: 135px;
+            border-radius: 12px; border: 2px solid rgba(255,255,255,0.1);
+            overflow: hidden; background: #000; transform: scaleX(-1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        #video-input { display: none; }
+
+        /* UI 面板 */
+        .ui-panel {
+            position: absolute; left: 5%; top: 5%; pointer-events: none;
+        }
+        #score-val { font-size: 64px; font-weight: bold; margin: 0; }
+        #combo-val { font-size: 24px; color: #aaa; margin: 0; }
+
+        /* 状态提示 */
+        #status-msg {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px; font-family: var(--font-title);
+            pointer-events: none; opacity: 0;
+        }
+
+        /* 启动与结算页 */
+        .overlay {
+            position: absolute; inset: 0;
+            background: rgba(8, 9, 12, 0.95);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 100;
+        }
+        .btn {
+            padding: 15px 40px; font-size: 24px; cursor: pointer;
+            background: #fff; color: #000; border: none;
+            border-radius: 50px; transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            margin: 10px; font-family: var(--font-main);
+        }
+        .btn:hover { transform: scale(1.1); background: var(--color-2); }
+        
+        #result-panel { transform: translateY(100%); }
+
+        /* 进度条 */
+        #progress-bar {
+            position: absolute; top: 0; left: 0; height: 4px;
+            background: var(--color-2); width: 0%; transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-overlay"></div>
+<svg class="bg-noise" viewBox="0 0 200 200" xmlns='http://www.w3.org/2000/svg'>
+    <filter id='noise'>
+        <feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' />
+    </filter>
+    <rect width='100%' height='100%' filter='url(#noise)' />
+</svg>
+
+<div id="game-container">
+    <div id="progress-bar"></div>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="ui-panel">
+        <h1 id="score-val">0000</h1>
+        <p id="combo-val">COMBO 0</p>
+    </div>
+
+    <div id="cam-wrapper">
+        <video id="video-input"></video>
+        <canvas id="camCanvas" style="width:100%; height:100%;"></canvas>
+    </div>
+
+    <div id="status-msg"></div>
+
+    <!-- 启动页 -->
+    <div id="start-panel" class="overlay">
+        <h1 style="font-size: 80px; margin-bottom: 10px;">手势节奏大师</h1>
+        <p style="font-size: 20px; color: #888; margin-bottom: 40px;">用手打出节拍，不要让音乐停下</p>
+        <button id="start-btn" class="btn">开始游戏</button>
+        <p style="font-size: 14px; color: #555; margin-top: 20px;">需开启摄像头权限 | 本地处理不上传</p>
+    </div>
+
+    <!-- 结算页 -->
+    <div id="result-panel" class="overlay">
+        <h1 id="res-rank" style="font-size: 120px; margin: 0;">S</h1>
+        <p id="res-msg" style="font-size: 32px; margin-bottom: 30px;">神乎其技！</p>
+        <div style="display: flex; gap: 40px; margin-bottom: 40px; text-align: center;">
+            <div><p>总分</p><h2 id="res-score">0</h2></div>
+            <div><p>最高连击</p><h2 id="res-combo">0</h2></div>
+            <div><p>判定</p><p id="res-stats" style="font-size: 14px; line-height: 1.5;"></p></div>
+        </div>
+        <div style="display: flex;">
+            <button id="retry-btn" class="btn">再来一把</button>
+            <button id="change-btn" class="btn" style="background:transparent; color:#fff; border:1px solid #555;">换个节奏</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/** 
+ * 手势节奏大师 - 核心脚本
+ * 采用模块化单例结构
+ */
+
+const CONFIG = {
+    bpm: 120,
+    duration: 60,
+    laneCount: 4,
+    colors: ['#ff3c50', '#00ffb4', '#ffc800', '#ff8a00'],
+    gestures: ['FIST', 'OPEN', 'SCISSORS', 'THUMBS_UP'],
+    perfectWindow: 120,
+    greatWindow: 250,
+    goodWindow: 400,
+    fallTime: 2000, // 音符从顶到底的时间(ms)
+};
+
+// ------------------------------------------------------------------
+// Web Audio 引擎 - 合成 808 鼓点
+// ------------------------------------------------------------------
+class AudioEngine {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.nextBeatTime = 0;
+        this.beatCount = 0;
+        this.isRunning = false;
+    }
+
+    async init() {
+        if (this.ctx.state === 'suspended') await this.ctx.resume();
+    }
+
+    // 合成底鼓
+    playKick(time) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.setValueAtTime(150, time);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+        gain.gain.setValueAtTime(1, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(time); osc.stop(time + 0.5);
+    }
+
+    // 合成军鼓
+    playSnare(time) {
+        const noise = this.ctx.createBufferSource();
+        const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        noise.buffer = buffer;
+        
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'highpass'; filter.frequency.value = 1000;
+        
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.3, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        
+        noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+        noise.start(time);
+    }
+
+    // 合成踩镲
+    playHihat(time) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square'; osc.frequency.setValueAtTime(8000, time);
+        gain.gain.setValueAtTime(0.05, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(time); osc.stop(time + 0.05);
+    }
+
+    // 判定反馈音
+    playFeedback(freq, dur) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur/1000);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + dur/1000);
+    }
+
+    scheduler() {
+        while (this.nextBeatTime < this.ctx.currentTime + 0.1) {
+            this.playHihat(this.nextBeatTime);
+            if (this.beatCount % 4 === 0) this.playKick(this.nextBeatTime);
+            if (this.beatCount % 4 === 2) this.playSnare(this.nextBeatTime);
+            
+            this.nextBeatTime += 60 / CONFIG.bpm;
+            this.beatCount++;
+        }
+        if (this.isRunning) setTimeout(() => this.scheduler(), 25);
+    }
+
+    start() {
+        this.isRunning = true;
+        this.nextBeatTime = this.ctx.currentTime;
+        this.beatCount = 0;
+        this.scheduler();
+    }
+
+    stop() { this.isRunning = false; }
+}
+
+// ------------------------------------------------------------------
+// 手势识别引擎
+// ------------------------------------------------------------------
+class GestureEngine {
+    constructor(videoEl, camCanvasEl) {
+        this.video = videoEl;
+        this.canvas = camCanvasEl;
+        this.ctx = camCanvasEl.getContext('2d');
+        this.hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        
+        this.hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 0,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        this.currentGesture = null;
+        this.gestureHistory = [];
+        this.lastTriggerTime = 0;
+        this.onGestureDetected = null;
+
+        this.hands.onResults(results => this.processResults(results));
+    }
+
+    async start() {
+        const camera = new Camera(this.video, {
+            onFrame: async () => {
+                // 控制手势检测频率约为 15-20fps
+                if (Date.now() % 2 === 0) await this.hands.send({image: this.video});
+            },
+            width: 480, height: 360
+        });
+        camera.start();
+    }
+
+    processResults(res) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
+            const marks = res.multiHandLandmarks[0];
+            drawConnectors(this.ctx, marks, HAND_CONNECTIONS, {color: '#ffffff33', lineWidth: 2});
+            drawLandmarks(this.ctx, marks, {color: '#ffffff', lineWidth: 1, radius: 2});
+            
+            const detected = this.classify(marks);
+            if (detected) {
+                this.gestureHistory.push(detected);
+                if (this.gestureHistory.length > 3) this.gestureHistory.shift();
+                
+                // 连续3帧一致且不在冷却期
+                const now = Date.now();
+                if (this.gestureHistory.every(g => g === detected) && 
+                    now - this.lastTriggerTime > 300) {
+                    if (this.onGestureDetected) this.onGestureDetected(detected);
+                    this.lastTriggerTime = now;
+                }
+            }
+        }
+    }
+
+    classify(m) {
+        const getDist = (p1, p2) => Math.hypot(p1.x-p2.x, p1.y-p2.y);
+        
+        // 手指伸展判断 (Tip vs PIP/Wrist)
+        const isExt = (tip, pip) => getDist(m[tip], m[0]) > getDist(m[pip], m[0]);
+        const f1 = isExt(8, 6);  // 食指
+        const f2 = isExt(12, 10); // 中指
+        const f3 = isExt(16, 14); // 无名指
+        const f4 = isExt(20, 18); // 小指
+        const thumb = getDist(m[4], m[0]) > getDist(m[2], m[0]) && m[4].y < m[2].y;
+
+        // 逻辑：
+        // FIST: 全不伸
+        if (!f1 && !f2 && !f3 && !f4 && !thumb) return 'FIST';
+        // OPEN: 全伸
+        if (f1 && f2 && f3 && f4 && thumb) return 'OPEN';
+        // SCISSORS: 食中伸，其余缩
+        if (f1 && f2 && !f3 && !f4) return 'SCISSORS';
+        // THUMBS_UP: 仅大拇指伸且在上
+        if (thumb && !f1 && !f2 && !f3 && !f4) return 'THUMBS_UP';
+        
+        return null;
+    }
+}
+
+// ------------------------------------------------------------------
+// 核心游戏逻辑
+// ------------------------------------------------------------------
+class RhythmGame {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.notes = [];
+        this.score = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+        this.startTime = 0;
+        this.isStarted = false;
+        this.particles = [];
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        this.audio = new AudioEngine();
+        this.gesture = new GestureEngine(document.getElementById('video-input'), document.getElementById('camCanvas'));
+        this.gesture.onGestureDetected = (g) => this.handleInput(g);
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.laneW = Math.max(10, this.canvas.width * 0.6 / CONFIG.laneCount);
+        this.laneStartX = this.canvas.width * 0.35;
+        this.judgementY = this.canvas.height * 0.85;
+    }
+
+    generateMap() {
+        this.notes = [];
+        const totalNotes = 120;
+        const interval = 500; // 每500ms一个音符 (120BPM)
+        
+        for (let i = 0; i < totalNotes; i++) {
+            let lane;
+            const time = i * interval + 3000; // 延迟3秒开始
+
+            if (i < 8) lane = i % 2; // 热身
+            else if (i < 40) lane = Math.floor(Math.random() * 4); // 随机
+            else if (i < 100) lane = Math.floor(Math.random() * 4); // 随机
+            else { // 双押
+                lane = Math.floor(Math.random() * 3);
+                this.notes.push({ time, lane: lane+1, type: CONFIG.gestures[lane+1], hit: false });
+            }
+            this.notes.push({ time, lane, type: CONFIG.gestures[lane], hit: false });
+        }
+    }
+
+    handleInput(gestureType) {
+        if (!this.isStarted) return;
+        
+        const now = Date.now() - this.startTime;
+        const laneIdx = CONFIG.gestures.indexOf(gestureType);
+        
+        // 寻找最近的、未击中的对应轨道音符
+        let closest = null;
+        let minDiff = Infinity;
+
+        this.notes.forEach(n => {
+            if (n.lane === laneIdx && !n.hit) {
+                const diff = Math.abs(now - n.time);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = n;
+                }
+            }
+        });
+
+        if (closest && minDiff < CONFIG.goodWindow) {
+            this.judge(minDiff, closest);
+        }
+    }
+
+    judge(diff, note) {
+        note.hit = true;
+        let rating = "";
+        if (diff < CONFIG.perfectWindow) {
+            rating = "PERFECT";
+            this.score += 100 * this.getMultiplier();
+            this.stats.perfect++;
+            this.audio.playFeedback(880, 50);
+            this.spawnParticles(note.lane, CONFIG.colors[note.lane], 20);
+        } else if (diff < CONFIG.greatWindow) {
+            rating = "GREAT";
+            this.score += 70 * this.getMultiplier();
+            this.stats.great++;
+            this.audio.playFeedback(660, 60);
+            this.spawnParticles(note.lane, CONFIG.colors[note.lane], 10);
+        } else {
+            rating = "GOOD";
+            this.score += 30 * this.getMultiplier();
+            this.stats.good++;
+            this.audio.playFeedback(440, 80);
+        }
+        
+        this.combo++;
+        this.maxCombo = Math.max(this.combo, this.maxCombo);
+        this.showRating(rating);
+        this.updateUI();
+    }
+
+    getMultiplier() {
+        if (this.combo >= 50) return 4;
+        if (this.combo >= 30) return 3;
+        if (this.combo >= 10) return 2;
+        return 1;
+    }
+
+    spawnParticles(lane, color, count) {
+        const x = this.laneStartX + (lane + 0.5) * this.laneW;
+        for (let i = 0; i < count; i++) {
+            this.particles.push({
+                x, y: this.judgementY,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0,
+                color
+            });
+        }
+    }
+
+    showRating(type) {
+        const el = document.getElementById('status-msg');
+        const colors = { PERFECT: '#ffc800', GREAT: '#00ffb4', GOOD: '#8a8a8a', MISS: '#ff3c50' };
+        const texts = { PERFECT: '完美！', GREAT: '不错嘛', GOOD: '还行吧', MISS: '手抽筋了？' };
+        
+        el.innerText = texts[type];
+        el.style.color = colors[type];
+        
+        gsap.fromTo(el, 
+            { opacity: 1, scale: 0.5, y: -20 }, 
+            { opacity: 0, scale: 1.2, y: -100, duration: 0.6, ease: "back.out(2)" }
+        );
+
+        if (this.combo > 0 && this.combo % 10 === 0) {
+            const msgs = { 10: "有点东西", 30: "手速炸了", 50: "你是机器吧" };
+            const m = msgs[this.combo] || "不可思议！";
+            // 连击里程碑特效略
+        }
+    }
+
+    updateUI() {
+        document.getElementById('score-val').innerText = String(this.score).padStart(4, '0');
+        document.getElementById('combo-val').innerText = `COMBO ${this.combo}`;
+    }
+
+    drawIcon(ctx, type, x, y, size) {
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        if (type === 'FIST') {
+            ctx.rect(x-size/3, y-size/3, size*0.6, size*0.6);
+        } else if (type === 'OPEN') {
+            for(let i=-2; i<=2; i++) { ctx.moveTo(x+i*4, y+size/3); ctx.lineTo(x+i*4, y-size/3); }
+        } else if (type === 'SCISSORS') {
+            ctx.moveTo(x-4, y+size/3); ctx.lineTo(x-4, y-size/3);
+            ctx.moveTo(x+4, y+size/3); ctx.lineTo(x+4, y-size/3);
+        } else if (type === 'THUMBS_UP') {
+            ctx.moveTo(x, y+size/3); ctx.lineTo(x, y-size/3);
+            ctx.moveTo(x, y-size/3); ctx.lineTo(x-4, y-size/6);
+        }
+        ctx.stroke();
+    }
+
+    update() {
+        if (!this.isStarted) return;
+        const now = Date.now() - this.startTime;
+        const progress = Math.min(100, (now / (CONFIG.duration * 1000)) * 100);
+        document.getElementById('progress-bar').style.width = progress + '%';
+
+        // 渲染背景与轨道
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (let i = 0; i < CONFIG.laneCount; i++) {
+            this.ctx.fillStyle = "rgba(255,255,255,0.03)";
+            this.ctx.fillRect(this.laneStartX + i * this.laneW, 0, this.laneW - 4, this.canvas.height);
+        }
+
+        // 判定线
+        this.ctx.strokeStyle = "rgba(255,255,255,0.5)";
+        this.ctx.lineWidth = 4;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.laneStartX, this.judgementY);
+        this.ctx.lineTo(this.laneStartX + CONFIG.laneCount * this.laneW, this.judgementY);
+        this.ctx.stroke();
+
+        // 渲染音符
+        this.notes.forEach(n => {
+            if (n.hit) return;
+            const timeDiff = n.time - now;
+            
+            // 漏检 Miss
+            if (timeDiff < -CONFIG.goodWindow) {
+                n.hit = true;
+                this.combo = 0;
+                this.stats.miss++;
+                this.showRating("MISS");
+                this.audio.playFeedback(150, 150);
+                this.updateUI();
+                return;
+            }
+
+            // 计算位置
+            const y = this.judgementY - (timeDiff / CONFIG.fallTime) * this.canvas.height;
+            if (y < -50 || y > this.canvas.height + 50) return;
+
+            const x = this.laneStartX + n.lane * this.laneW;
+            const color = CONFIG.colors[n.lane];
+
+            // 拖尾
+            const grad = this.ctx.createLinearGradient(0, y, 0, y - 100);
+            grad.addColorStop(0, color + '66');
+            grad.addColorStop(1, 'transparent');
+            this.ctx.fillStyle = grad;
+            this.ctx.fillRect(x + 10, y - 100, this.laneW - 24, 100);
+
+            // 胶囊主体
+            this.ctx.fillStyle = color;
+            this.ctx.beginPath();
+            this.ctx.roundRect(x + 10, y - 20, this.laneW - 24, 40, 20);
+            this.ctx.fill();
+
+            // 图标
+            this.drawIcon(this.ctx, n.type, x + this.laneW/2 - 2, y, 30);
+        });
+
+        // 粒子
+        this.particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+            if (p.life <= 0) this.particles.splice(i, 1);
+            this.ctx.fillStyle = p.color;
+            this.ctx.globalAlpha = p.life;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+            this.ctx.fill();
+            this.ctx.globalAlpha = 1;
+        });
+
+        // 检查结束
+        if (now > CONFIG.duration * 1000 + 2000) this.endGame();
+
+        requestAnimationFrame(() => this.update());
+    }
+
+    async startGame() {
+        await this.audio.init();
+        this.generateMap();
+        
+        gsap.to("#start-panel", { opacity: 0, pointerEvents: 'none', duration: 0.5 });
+        
+        // 倒计时
+        const cd = document.getElementById('status-msg');
+        for (let i = 3; i > 0; i--) {
+            cd.innerText = i;
+            gsap.fromTo(cd, {scale: 3, opacity: 1}, {scale: 1, opacity: 0, duration: 1, ease: "power2.out"});
+            await new Promise(r => setTimeout(r, 1000));
+        }
+
+        this.startTime = Date.now();
+        this.isStarted = true;
+        this.audio.start();
+        this.update();
+    }
+
+    endGame() {
+        this.isStarted = false;
+        this.audio.stop();
+        
+        const rank = this.getRank();
+        document.getElementById('res-rank').innerText = rank.letter;
+        document.getElementById('res-rank').style.color = rank.color;
+        document.getElementById('res-msg').innerText = rank.msg;
+        document.getElementById('res-score').innerText = this.score;
+        document.getElementById('res-combo').innerText = this.maxCombo;
+        document.getElementById('res-stats').innerText = `完美: ${this.stats.perfect} | 不错: ${this.stats.great}\n还行: ${this.stats.good} | 抽筋: ${this.stats.miss}`;
+        
+        gsap.to("#result-panel", { y: 0, duration: 1, ease: "expo.out" });
+    }
+
+    getRank() {
+        const total = this.notes.length;
+        const ratio = this.score / (total * 100);
+        if (ratio > 0.9) return { letter: 'S', color: '#ffc800', msg: '神乎其技' };
+        if (ratio > 0.7) return { letter: 'A', color: '#00ffb4', msg: '节奏达人' };
+        if (ratio > 0.5) return { letter: 'B', color: '#ff8a00', msg: '再接再厉' };
+        return { letter: 'D', color: '#ff3c50', msg: '回去练练吧' };
+    }
+}
+
+// ------------------------------------------------------------------
+// 初始化
+// ------------------------------------------------------------------
+const game = new RhythmGame();
+
+document.getElementById('start-btn').onclick = () => {
+    game.gesture.start().then(() => {
+        game.startGame();
+    });
+};
+
+document.getElementById('retry-btn').onclick = () => {
+    location.reload();
+};
+
+document.getElementById('change-btn').onclick = () => {
+    location.reload(); // 简单起见直接刷新
+};
+
+</script>
+</body>
+</html>

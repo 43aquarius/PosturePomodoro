@@ -411,6 +411,57 @@ class App {
                     <div class="stat"><div class="stat-value">${stats.avgPostureScore || '--'}</div><div class="stat-label">坐姿均分</div></div>
                 `;
             }
+            
+            // 更新报告面板内容
+            const reportEl = document.getElementById('report-content');
+            if (reportEl) {
+                const weekStats = await this.stats.getWeekStats();
+                reportEl.innerHTML = `
+                    <div class="report-section">
+                        <h4>今日统计</h4>
+                        <div class="report-stats">
+                            <div class="report-stat">
+                                <div class="report-stat-value">${stats.pomodoroCount}</div>
+                                <div class="report-stat-label">完成番茄</div>
+                            </div>
+                            <div class="report-stat">
+                                <div class="report-stat-value">${stats.totalWorkTime}</div>
+                                <div class="report-stat-label">工作分钟</div>
+                            </div>
+                            <div class="report-stat">
+                                <div class="report-stat-value">${stats.avgPostureScore || '--'}</div>
+                                <div class="report-stat-label">坐姿均分</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-section">
+                        <h4>本周趋势</h4>
+                        <div class="week-trend">
+                            ${weekStats.map(day => `
+                                <div class="day-item">
+                                    <div class="day-name">${day.date}</div>
+                                    <div class="day-value">${day.pomodoroCount}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="report-section">
+                        <h4>姿态分析</h4>
+                        <div class="posture-analysis">
+                            <div class="posture-item">
+                                <div class="posture-label">最佳坐姿</div>
+                                <div class="posture-value">${stats.bestPostureTime || 0}分钟</div>
+                            </div>
+                            <div class="posture-item">
+                                <div class="posture-label">需要改进</div>
+                                <div class="posture-value">${stats.needsImprovementTime || 0}分钟</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
         } catch(e) {}
     }
 
